@@ -1,0 +1,7 @@
+bazel-bin
+bazel-genfiles
+bazel-out
+bazel-rules_ocaml
+bazel-testlogs
+*.cmi
+*.cmo
