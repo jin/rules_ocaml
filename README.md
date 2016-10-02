@@ -20,7 +20,7 @@ Add the following to your `WORKSPACE` file.
 git_repository(
     name = "io_bazel_rules_ocaml",
     remote = "https://github.com/jin/rules_ocaml.git",
-    commit = "695034b70643dab296725a26a05c494969edf727",
+    commit = "af311927b7d4610b9de78dad86ac0ab018a7ebc4",
 )
 ```
 
