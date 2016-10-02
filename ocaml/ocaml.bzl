@@ -52,7 +52,6 @@ def _ocaml_binary_impl(ctx):
   if (len(ctx.attr.opam_pkgs) > 0):
     pkgs = "-pkgs " + " ".join(ctx.attr.opam_pkgs) + " -use-ocamlfind"
 
-  # Move the binary into bazel-out
   mv_command = "&& cp -L %s %s" % (intermediate_bin, ctx.outputs.bin.path)
   command = " ".join([ocamlbuild_bin, opts, pkgs, target_bin, mv_command])
 
@@ -77,6 +76,12 @@ _ocaml_binary = rule(
         ),
         "opam_pkgs": attr.string_list(mandatory = False),
         "bin_type": attr.string(default = "native"),
+        "_opam": attr.label(
+            executable = True,
+            default = Label("//ocaml:opam"),
+            single_file = True,
+            allow_files = True
+        )
     },
     outputs = { "bin": "%{name}.out", "build_dir": "_build_%{name}" },
 )
@@ -95,4 +100,17 @@ def ocaml_bytecode_binary(name, srcs, **kwargs):
       srcs = srcs,
       bin_type = "bytecode",
       **kwargs
+  )
+
+def ocaml_repositories():
+  native.http_file(
+      name = "opam_darwin_x86_64",
+      sha256 = "70120e5ded040ddad16914ee56180a2be9c7d64e332f16f7a6f47c41069d9e93",
+      url = "https://github.com/ocaml/opam/releases/download/2.0-alpha4/opam-2.0-alpha4-x86_64-Darwin"
+  )
+
+  native.http_file(
+      name = "opam_linux_x86_64",
+      sha256 = "3171aa1b10df13aa657cffdd5c616f8e5a7c624f8335de72db2e28db51435fe0",
+      url = "https://github.com/ocaml/opam/releases/download/2.0-alpha4/opam-2.0-alpha4-x86_64-Linux"
   )
