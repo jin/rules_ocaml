@@ -5,3 +5,7 @@ bazel-rules_ocaml
 bazel-testlogs
 *.cmi
 *.cmo
+*.cmx
+*.depends
+*.o
+*.native
