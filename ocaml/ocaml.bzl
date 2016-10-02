@@ -1,4 +1,4 @@
-_OCAML_FILETYPES = FileType([".ml"])
+OCAML_FILETYPES = FileType([".ml"])
 
 def _ocaml_interface_impl(ctx):
   ctx.action(
@@ -11,8 +11,8 @@ ocaml_interface = rule(
     implementation = _ocaml_interface_impl,
     attrs = {
         "src": attr.label(
-            allow_files=_OCAML_FILETYPES,
-            single_file=True,
+            allow_files = OCAML_FILETYPES,
+            single_file = True,
         ),
     },
     outputs = { "mli": "%{name}.mli" },
@@ -24,6 +24,7 @@ def _strip_ml_extension(path):
   else:
     return path
 
+
 def _ocaml_binary_impl(ctx):
   src = _strip_ml_extension(ctx.file.src.path)
   ocamlbuild_bin = "rm -rf _build && ocamlbuild"
@@ -34,31 +35,38 @@ def _ocaml_binary_impl(ctx):
   else:
     target_bin = "%s.byte" % src
 
+  dirname = ctx.file.src.dirname
+  intermediate_bin = target_bin.replace(dirname + "/", "")
+
   pkgs = ""
   if (len(ctx.attr.opam_pkgs) > 0):
     pkgs = "-pkgs " + " ".join(ctx.attr.opam_pkgs) + " -use-ocamlfind"
-  
-  mv_command = "&& mv %s %s" % (target_bin, ctx.outputs.binary.path)
+
+  # Move the binary into bazel-out
+  mv_command = "&& cp -L %s %s" % (intermediate_bin, ctx.outputs.bin.path)
   command = " ".join([ocamlbuild_bin, opts, pkgs, target_bin, mv_command])
+  print(command)
 
   ctx.action(
       inputs = ctx.files.src,
-      outputs = [ctx.outputs.binary],
       command = command,
+      outputs = [ctx.outputs.bin],
       use_default_shell_env=True,
+      progress_message = "Compiling OCaml binary %s" % ctx.label.name,
   )
 
 _ocaml_binary = rule(
     implementation = _ocaml_binary_impl,
     attrs = {
         "src": attr.label(
-            allow_files=_OCAML_FILETYPES,
+            allow_files=OCAML_FILETYPES,
             single_file=True,
         ),
         "opam_pkgs": attr.string_list(mandatory=False),
         "bin_type": attr.string(default="native"),
     },
-    outputs = { "binary": "%{name}.out" },
+    outputs = { "bin": "%{name}.out" },
+    # executable = True,
 )
 
 def ocaml_native_binary(name, src, **kwargs):
