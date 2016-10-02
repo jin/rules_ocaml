@@ -45,7 +45,6 @@ def _ocaml_binary_impl(ctx):
   # Move the binary into bazel-out
   mv_command = "&& cp -L %s %s" % (intermediate_bin, ctx.outputs.bin.path)
   command = " ".join([ocamlbuild_bin, opts, pkgs, target_bin, mv_command])
-  print(command)
 
   ctx.action(
       inputs = ctx.files.src,
@@ -66,7 +65,6 @@ _ocaml_binary = rule(
         "bin_type": attr.string(default="native"),
     },
     outputs = { "bin": "%{name}.out" },
-    # executable = True,
 )
 
 def ocaml_native_binary(name, src, **kwargs):
