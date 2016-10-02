@@ -39,8 +39,9 @@ Generates a native binary.
 ```bzl
 ocaml_native_binary(
     name = "hello_world",
-    src = "examples/hello_world.ml",
-    opam_pkgs = ["pkg_foo", "pkg_bar"]
+    srcs = glob(["examples/*.ml"]),
+    opam_pkgs = ["pkg_foo", "pkg_bar"],
+    src_root = "examples/hello_world.ml", # Optional, defaults to the first main.ml found while loading the sources.
 )
 ```
 
@@ -51,8 +52,9 @@ Generates a bytecode binary.
 ```bzl
 ocaml_bytecode_binary(
     name = "hello_world",
-    src = "examples/hello_world.ml",
-    opam_pkgs = ["pkg_foo", "pkg_bar"]
+    srcs = glob(["examples/*.ml"]),
+    opam_pkgs = ["pkg_foo", "pkg_bar"],
+    src_root = "examples/hello_world.ml", # Optional, defaults to the first main.ml found while loading the sources.
 )
 ```
 
