@@ -68,3 +68,7 @@ ocaml_interface(
     src = "examples/hello_world.ml",
 )
 ```
+
+## Projects using rules_ocaml
+
+- [https://github.com/jin/scheme.ml](https://github.com/jin/scheme.ml)
