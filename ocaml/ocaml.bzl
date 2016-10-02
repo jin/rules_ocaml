@@ -38,16 +38,15 @@ def _get_src_root(ctx, root_file_names = ["main.ml"]):
 def _ocaml_binary_impl(ctx):
   src_root = _get_src_root(ctx)
   src = _strip_ml_extension(src_root.path)
-  ocamlbuild_bin = "rm -rf _build && ocamlbuild"
-  opts = "-r"
+  ocamlbuild_bin = "ocamlbuild"
+  opts = "-build-dir %s" % ctx.outputs.build_dir.path
 
   if (ctx.attr.bin_type == "native"):
     target_bin = "%s.native" % src
   else:
     target_bin = "%s.byte" % src
 
-  dirname = src_root.dirname
-  intermediate_bin = target_bin.replace(dirname + "/", "")
+  intermediate_bin = "/".join([ctx.outputs.build_dir.path, target_bin])
 
   pkgs = ""
   if (len(ctx.attr.opam_pkgs) > 0):
@@ -60,7 +59,7 @@ def _ocaml_binary_impl(ctx):
   ctx.action(
       inputs = ctx.files.srcs,
       command = command,
-      outputs = [ctx.outputs.bin],
+      outputs = [ctx.outputs.bin, ctx.outputs.build_dir],
       use_default_shell_env=True,
       progress_message = "Compiling OCaml binary %s" % ctx.label.name,
   )
@@ -79,7 +78,7 @@ _ocaml_binary = rule(
         "opam_pkgs": attr.string_list(mandatory = False),
         "bin_type": attr.string(default = "native"),
     },
-    outputs = { "bin": "%{name}.out" },
+    outputs = { "bin": "%{name}.out", "build_dir": "_build_%{name}" },
 )
 
 def ocaml_native_binary(name, srcs, **kwargs):
