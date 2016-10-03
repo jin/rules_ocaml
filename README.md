@@ -24,7 +24,8 @@ git_repository(
 )
 
 load("@io_bazel_rules_ocaml//ocaml:ocaml.bzl", "ocaml_repositories")
-ocaml_repositories()
+ocaml_repositories() 
+# this downloads the OPAM precompiled binaries into your bazel cache, but doesn't use them directly yet.
 ```
 
 and this to your BUILD files.
