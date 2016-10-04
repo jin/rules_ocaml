@@ -12,7 +12,7 @@ Build OCaml with Bazel. Very experimental.
 
 ## Setup
 
-This is a wrapper around `ocamlbuild`. Ensure that your `ocamlbuild` and `ocamlfind` are reachable in your `PATH`.
+This is a wrapper around `ocamlbuild`. Ensure that the OCaml toolchain (`ocamlbuild`, `ocamlfind`, etc) is reachable in your `PATH`. TODO: have `ocaml_repositories` download the toolchain.
 
 Add the following to your `WORKSPACE` file.
 
