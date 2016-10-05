@@ -46,11 +46,12 @@ def _ocaml_binary_impl(ctx):
   else:
     target_bin = "%s.byte" % src
 
+  # Binary compiled by ocamlbuild
   intermediate_bin = "/".join([ctx.outputs.build_dir.path, target_bin])
 
   pkgs = ""
-  if (len(ctx.attr.opam_pkgs) > 0):
-    pkgs = "-pkgs " + " ".join(ctx.attr.opam_pkgs) + " -use-ocamlfind"
+  if (len(ctx.attr.opam_packages) > 0):
+    pkgs = "-pkgs " + " ".join(ctx.attr.opam_packages) + " -use-ocamlfind"
 
   mv_command = "&& cp -L %s %s" % (intermediate_bin, ctx.outputs.bin.path)
   command = " ".join([ocamlbuild_bin, opts, pkgs, target_bin, mv_command])
@@ -63,6 +64,15 @@ def _ocaml_binary_impl(ctx):
       progress_message = "Compiling OCaml binary %s" % ctx.label.name,
   )
 
+_ocaml_toolchain_attrs = {
+    "_opam": attr.label(
+        executable = True,
+        default = Label("//ocaml:opam"),
+        single_file = True,
+        allow_files = True,
+    ),
+}
+
 _ocaml_binary = rule(
     implementation = _ocaml_binary_impl,
     attrs = {
@@ -74,16 +84,14 @@ _ocaml_binary = rule(
             single_file = True,
             mandatory = False,
         ),
-        "opam_pkgs": attr.string_list(mandatory = False),
+        "opam_packages": attr.string_list(mandatory = False),
         "bin_type": attr.string(default = "native"),
-        "_opam": attr.label(
-            executable = True,
-            default = Label("//ocaml:opam"),
-            single_file = True,
-            allow_files = True
-        )
+    } + _ocaml_toolchain_attrs,
+    executable = True,
+    outputs = {
+       "bin": "%{name}",
+       "build_dir": "_build_%{name}"
     },
-    outputs = { "bin": "%{name}.out", "build_dir": "_build_%{name}" },
 )
 
 def ocaml_native_binary(name, srcs, **kwargs):
