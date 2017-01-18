@@ -53,13 +53,13 @@ def _ocaml_binary_impl(ctx):
   if (len(ctx.attr.opam_packages) > 0):
     pkgs = "-pkgs " + " ".join(ctx.attr.opam_packages) + " -use-ocamlfind"
 
-  mv_command = "&& cp -L %s %s" % (intermediate_bin, ctx.outputs.bin.path)
+  mv_command = "&& cp -L %s %s" % (intermediate_bin, ctx.outputs.executable.path)
   command = " ".join([ocamlbuild_bin, opts, pkgs, target_bin, mv_command])
 
   ctx.action(
       inputs = ctx.files.srcs,
       command = command,
-      outputs = [ctx.outputs.bin, ctx.outputs.build_dir],
+      outputs = [ctx.outputs.executable, ctx.outputs.build_dir],
       use_default_shell_env=True,
       progress_message = "Compiling OCaml binary %s" % ctx.label.name,
   )
@@ -89,7 +89,6 @@ _ocaml_binary = rule(
     } + _ocaml_toolchain_attrs,
     executable = True,
     outputs = {
-       "bin": "%{name}",
        "build_dir": "_build_%{name}"
     },
 )
