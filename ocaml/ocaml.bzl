@@ -70,6 +70,7 @@ _ocaml_toolchain_attrs = {
         default = Label("//ocaml:opam"),
         single_file = True,
         allow_files = True,
+        cfg = "host",
     ),
 }
 
