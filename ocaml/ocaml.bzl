@@ -1,11 +1,38 @@
 OCAML_FILETYPES = FileType([".ml"])
+OCAML_VERSION = "4.03.0"
+
+_opam_binary_attrs = {
+    "_opam": attr.label(
+        default = Label("@opam//:opam"),
+        executable = True,
+        single_file = True,
+        allow_files = True,
+        cfg = "host",
+    ),
+}
+
+_ocaml_toolchain_attrs = {
+    "_ocamlc": attr.label(
+        default = Label("@ocaml_toolchain//:ocamlc"),
+        executable = True,
+        single_file = True,
+        allow_files = True,
+        cfg = "host",
+    )
+} + _opam_binary_attrs
 
 def _ocaml_interface_impl(ctx):
-  ctx.action(
+  ctx.run_shell(
+      # executable = ctx.executable._ocamlc,
+      # arguments = ["-i", "-c"], #, "-o", ctx.outputs.mli.path, ctx.file.src.path],
       inputs = [ctx.file.src],
       outputs = [ctx.outputs.mli],
-      command = "ocamlc -i -c %s > %s" % (ctx.file.src.path, ctx.outputs.mli.path),
+      progress_message = "ocaml %s" % ctx.label,
+      mnemonic="OCamlc",
+      command = "ocamlc -i -c %s > %s" % (ctx.file.src, ctx.outputs.mli),
   )
+
+  return struct(mli = ctx.outputs.mli)
 
 ocaml_interface = rule(
     implementation = _ocaml_interface_impl,
@@ -14,7 +41,7 @@ ocaml_interface = rule(
             allow_files = OCAML_FILETYPES,
             single_file = True,
         ),
-    },
+    } + _ocaml_toolchain_attrs,
     outputs = { "mli": "%{name}.mli" },
 )
 
@@ -70,24 +97,6 @@ def _ocaml_binary_impl(ctx):
       progress_message = "Compiling OCaml binary %s" % ctx.label.name,
   )
 
-_ocaml_toolchain_attrs = {
-    "_opam": attr.label(
-        # default = Label("//ocaml:opam"),
-        default = Label("@opam//:opam"),
-        executable = True,
-        single_file = True,
-        allow_files = True,
-        cfg = "host",
-    ),
-    "_ocamlc": attr.label(
-        default = Label("@ocaml_toolchain//:ocamlc"),
-        executable = True,
-        single_file = True,
-        allow_files = True,
-        cfg = "host",
-    )
-}
-
 _ocaml_binary = rule(
     implementation = _ocaml_binary_impl,
     attrs = {
@@ -124,16 +133,17 @@ def ocaml_bytecode_binary(name, srcs, **kwargs):
       **kwargs
   )
 
+# Set up OCaml's toolchain (ocamlc, ocamlbuild, ocamlfind)
 _OCAML_TOOLCHAIN_BUILD = """
 filegroup(
   name = "ocamlc",
-  srcs = ["opam_dir/4.04.0/bin/ocamlc"],
+  srcs = ["opam_dir/4.03.0/bin/ocamlc"],
   visibility = ["//visibility:public"],
 )
  
 filegroup(
   name = "ocamlbuild",
-  srcs = ["opam_dir/4.04.0/bin/ocamlbuild"],
+  srcs = ["opam_dir/4.03.0/bin/ocamlbuild"],
   visibility = ["//visibility:public"],
 )
 """
@@ -141,22 +151,22 @@ filegroup(
 def _ocaml_toolchain_impl(repository_ctx):
   opam_dir = "opam_dir"
   opam_path = repository_ctx.path(repository_ctx.attr._opam)
-  repository_ctx.execute([opam_path, "init", "--comp", "4.04.0", "--root", opam_dir, "--no-setup"], quiet = False)
-  repository_ctx.execute([opam_path, "switch", "create", "4.04.0", "ocaml-base-compiler.4.04.0", "--root", opam_dir], quiet = False)
+  repository_ctx.execute([opam_path, "init", "--root", opam_dir, "--no-setup"], quiet = False)
+  repository_ctx.execute([opam_path, "switch", "create", "4.03.0", "ocaml-base-compiler.4.03.0", "--root", opam_dir], quiet = False)
   repository_ctx.execute([opam_path, "install", "ocamlbuild", "--yes", "--root", opam_dir], quiet = False)
+  # repository_ctx.execute([opam_path, "install", "ocamlbuild", "--yes", "--root", opam_dir], quiet = False)
   repository_ctx.file("WORKSPACE", "", False)
   repository_ctx.file("BUILD", _OCAML_TOOLCHAIN_BUILD, False)
 
 _ocaml_toolchain = repository_rule(
     implementation = _ocaml_toolchain_impl,
-    attrs = {} + _ocaml_toolchain_attrs
+    attrs = _opam_binary_attrs,
 )
 
 def ocaml_toolchain():
   _ocaml_toolchain(name = "ocaml_toolchain")
 
-# opam init --root=folder --no-setup --dry-run --show-actions
-
+# Set up OPAM
 def _opam_binary_impl(repository_ctx):
   os_name = repository_ctx.os.name.lower()
   if os_name.find("windows") != -1:
