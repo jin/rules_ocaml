@@ -41,6 +41,9 @@ def _ocaml_binary_impl(ctx):
   ocamlbuild_bin = "ocamlbuild"
   opts = "-build-dir %s" % ctx.outputs.build_dir.path
 
+  opam_path = ctx.executable._opam
+  print(opam_path)
+
   if (ctx.attr.bin_type == "native"):
     target_bin = "%s.native" % src
   else:
@@ -49,9 +52,12 @@ def _ocaml_binary_impl(ctx):
   # Binary compiled by ocamlbuild
   intermediate_bin = "/".join([ctx.outputs.build_dir.path, target_bin])
 
+  # opam_command = ""
   pkgs = ""
-  if (len(ctx.attr.opam_packages) > 0):
-    pkgs = "-pkgs " + " ".join(ctx.attr.opam_packages) + " -use-ocamlfind"
+  # opam_packages = ctx.attr.opam_packages
+  # if (len(opam_packages) > 0):
+  #   pkgs += "-pkgs " + " ".join(ctx.attr.opam_packages) + " -use-ocamlfind"
+  #   opam_command = " ".join([opam_path, "install"] + opam_packages + ["ocamlbuild", "&&"])
 
   mv_command = "&& cp -L %s %s" % (intermediate_bin, ctx.outputs.executable.path)
   command = " ".join([ocamlbuild_bin, opts, pkgs, target_bin, mv_command])
@@ -66,12 +72,20 @@ def _ocaml_binary_impl(ctx):
 
 _ocaml_toolchain_attrs = {
     "_opam": attr.label(
+        # default = Label("//ocaml:opam"),
+        default = Label("@opam//:opam"),
         executable = True,
-        default = Label("//ocaml:opam"),
         single_file = True,
         allow_files = True,
         cfg = "host",
     ),
+    "_ocamlc": attr.label(
+        default = Label("@ocaml_toolchain//:ocamlc"),
+        executable = True,
+        single_file = True,
+        allow_files = True,
+        cfg = "host",
+    )
 }
 
 _ocaml_binary = rule(
@@ -110,15 +124,68 @@ def ocaml_bytecode_binary(name, srcs, **kwargs):
       **kwargs
   )
 
-def ocaml_repositories():
-  native.http_file(
-      name = "opam_darwin_x86_64",
-      sha256 = "70120e5ded040ddad16914ee56180a2be9c7d64e332f16f7a6f47c41069d9e93",
-      url = "https://github.com/ocaml/opam/releases/download/2.0-alpha4/opam-2.0-alpha4-x86_64-Darwin"
-  )
+_OCAML_TOOLCHAIN_BUILD = """
+filegroup(
+  name = "ocamlc",
+  srcs = ["opam_dir/4.04.0/bin/ocamlc"],
+  visibility = ["//visibility:public"],
+)
+ 
+filegroup(
+  name = "ocamlbuild",
+  srcs = ["opam_dir/4.04.0/bin/ocamlbuild"],
+  visibility = ["//visibility:public"],
+)
+"""
 
-  native.http_file(
-      name = "opam_linux_x86_64",
-      sha256 = "3171aa1b10df13aa657cffdd5c616f8e5a7c624f8335de72db2e28db51435fe0",
-      url = "https://github.com/ocaml/opam/releases/download/2.0-alpha4/opam-2.0-alpha4-x86_64-Linux"
-  )
+def _ocaml_toolchain_impl(repository_ctx):
+  opam_dir = "opam_dir"
+  opam_path = repository_ctx.path(repository_ctx.attr._opam)
+  repository_ctx.execute([opam_path, "init", "--comp", "4.04.0", "--root", opam_dir, "--no-setup"], quiet = False)
+  repository_ctx.execute([opam_path, "switch", "create", "4.04.0", "ocaml-base-compiler.4.04.0", "--root", opam_dir], quiet = False)
+  repository_ctx.execute([opam_path, "install", "ocamlbuild", "--yes", "--root", opam_dir], quiet = False)
+  repository_ctx.file("WORKSPACE", "", False)
+  repository_ctx.file("BUILD", _OCAML_TOOLCHAIN_BUILD, False)
+
+_ocaml_toolchain = repository_rule(
+    implementation = _ocaml_toolchain_impl,
+    attrs = {} + _ocaml_toolchain_attrs
+)
+
+def ocaml_toolchain():
+  _ocaml_toolchain(name = "ocaml_toolchain")
+
+# opam init --root=folder --no-setup --dry-run --show-actions
+
+def _opam_binary_impl(repository_ctx):
+  os_name = repository_ctx.os.name.lower()
+  if os_name.find("windows") != -1:
+    fail("Windows is not supported yet, sorry!")
+  elif os_name.startswith("mac os"):
+    repository_ctx.download(
+        "https://github.com/ocaml/opam/releases/download/2.0-alpha4/opam-2.0-alpha4-x86_64-Darwin",
+        "opam",
+        "70120e5ded040ddad16914ee56180a2be9c7d64e332f16f7a6f47c41069d9e93",
+        executable = True,
+    )
+  else:
+    repository_ctx.download(
+        "https://github.com/ocaml/opam/releases/download/2.0-alpha4/opam-2.0-alpha4-x86_64-Linux",
+        "opam",
+        "3171aa1b10df13aa657cffdd5c616f8e5a7c624f8335de72db2e28db51435fe0",
+        executable = True,
+    )
+  repository_ctx.file("WORKSPACE", "", False)
+  repository_ctx.file("BUILD", "exports_files([\"opam\"])", False)
+
+_opam_binary = repository_rule(
+    implementation = _opam_binary_impl,
+    attrs = {}
+)
+
+def opam_binary():
+  _opam_binary(name = "opam")
+
+def ocaml_repositories():
+  opam_binary()
+  ocaml_toolchain()
