@@ -16,6 +16,20 @@ _ocaml_toolchain_attrs = {
         allow_files = True,
         cfg = "host",
     ),
+    "_ocamlopt": attr.label(
+        default = Label("@ocaml_toolchain//:ocamlopt"),
+        executable = True,
+        single_file = True,
+        allow_files = True,
+        cfg = "host",
+    ),
+    "_ocamlfind": attr.label(
+        default = Label("@ocaml_toolchain//:ocamlfind"),
+        executable = True,
+        single_file = True,
+        allow_files = True,
+        cfg = "host",
+    ),
     "_ocamlbuild": attr.label(
         default = Label("@ocaml_toolchain//:ocamlbuild"),
         executable = True,
@@ -65,19 +79,8 @@ def _get_src_root(ctx, root_file_names = ["main.ml"]):
   fail("No %s source file found." % " or ".join(root_file_names), "srcs")
 
 def _ocaml_binary_impl(ctx):
-  src_root = _get_src_root(ctx)
-  src = _strip_ml_extension(src_root.path)
-  ocamlbuild = ctx.executable._ocamlbuild
-  opts = "-build-dir %s" % ctx.outputs.build_dir.path
-
-  if (ctx.attr.bin_type == "native"):
-    target_bin = "%s.native" % src
-  else:
-    target_bin = "%s.byte" % src
-
-  # Binary compiled by ocamlbuild
-  intermediate_bin = "/".join([ctx.outputs.build_dir.path, target_bin])
-
+  opts = ""
+  compiler = ctx.file.compiler
   # opam_command = ""
   pkgs = ""
   # opam_packages = ctx.attr.opam_packages
@@ -85,14 +88,19 @@ def _ocaml_binary_impl(ctx):
   #   pkgs += "-pkgs " + " ".join(ctx.attr.opam_packages) + " -use-ocamlfind"
   #   opam_command = " ".join([opam_path, "install"] + opam_packages + ["ocamlbuild", "&&"])
 
-  mv_command = "&& cp -L %s %s" % (intermediate_bin, ctx.outputs.executable.path)
-  command = " ".join([ocamlbuild.path, opts, pkgs, target_bin, mv_command])
+  mv_command = ""
+  srcs_paths = [src.path for src in ctx.files.srcs]
+  search_dirs = list(depset([src.dirname for src in ctx.files.srcs]))
+  command = " ".join([
+      compiler.path,
+      "-o",
+      ctx.outputs.executable.path
+  ] + ["-I " + search_dir for search_dir in search_dirs] + srcs_paths)
 
   ctx.action(
-      inputs = ctx.files.srcs + [ocamlbuild],
+      inputs = ctx.files.srcs + [compiler],
       command = command,
-      outputs = [ctx.outputs.executable, ctx.outputs.build_dir],
-      use_default_shell_env=True,
+      outputs = [ctx.outputs.executable],
       progress_message = "Compiling OCaml binary %s" % ctx.label.name,
   )
 
@@ -102,33 +110,28 @@ _ocaml_binary = rule(
         "srcs": attr.label_list(
             allow_files = OCAML_FILETYPES
         ),
-        "src_root": attr.label(
-            allow_files = OCAML_FILETYPES,
-            single_file = True,
-            mandatory = False,
-        ),
+        "deps": attr.label_list(),
         "opam_packages": attr.string_list(mandatory = False),
-        "bin_type": attr.string(default = "native"),
+        "compiler": attr.label(
+            allow_files = True,
+            single_file = True,
+            mandatory = True,
+        ),
     } + _ocaml_toolchain_attrs,
     executable = True,
-    outputs = {
-       "build_dir": "_build_%{name}"
-    },
+    outputs = { },
 )
 
-def ocaml_native_binary(name, srcs, **kwargs):
+def ocaml_native_binary(name, srcs):
   _ocaml_binary(
       name = name,
       srcs = srcs,
-      bin_type = "native",
-      **kwargs
+      compiler = "@ocaml_toolchain//:ocamlopt",
   )
 
-def ocaml_bytecode_binary(name, srcs, **kwargs):
+def ocaml_bytecode_binary(name, srcs):
   _ocaml_binary(
       name = name,
       srcs = srcs,
-      bin_type = "bytecode",
-      **kwargs
+      compiler = "@ocaml_toolchain//:ocamlc",
   )
-

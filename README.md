@@ -23,7 +23,7 @@ git_repository(
     commit = "18685e1bc5ad22e425f502355087747a6638f51a",
 )
 
-load("@io_bazel_rules_ocaml//ocaml:ocaml.bzl", "ocaml_repositories")
+load("@io_bazel_rules_ocaml//ocaml:repo.bzl", "ocaml_repositories")
 ocaml_repositories() 
 # this downloads the OPAM precompiled binaries into your bazel cache, but doesn't use them directly yet.
 ```
