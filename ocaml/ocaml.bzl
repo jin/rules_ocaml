@@ -79,8 +79,20 @@ def _get_src_root(ctx, root_file_names = ["main.ml"]):
   fail("No %s source file found." % " or ".join(root_file_names), "srcs")
 
 def _ocaml_binary_impl(ctx):
-  opts = ""
-  compiler = ctx.file.compiler
+  ocamlbuild = ctx.executable._ocamlbuild
+  opts = "-quiet -build-dir %s" % ctx.outputs.build_dir.path
+
+  src_root = _get_src_root(ctx)
+  src = _strip_ml_extension(src_root.path)
+
+  if (ctx.attr.bin_type == "native"):
+    target_bin = "%s.native" % src
+  else:
+    target_bin = "%s.byte" % src
+
+  # Binary compiled by ocamlbuild
+  intermediate_bin = "/".join([ctx.outputs.build_dir.path, target_bin])
+
   # opam_command = ""
   pkgs = ""
   # opam_packages = ctx.attr.opam_packages
@@ -88,19 +100,17 @@ def _ocaml_binary_impl(ctx):
   #   pkgs += "-pkgs " + " ".join(ctx.attr.opam_packages) + " -use-ocamlfind"
   #   opam_command = " ".join([opam_path, "install"] + opam_packages + ["ocamlbuild", "&&"])
 
-  mv_command = ""
-  srcs_paths = [src.path for src in ctx.files.srcs]
-  search_dirs = list(depset([src.dirname for src in ctx.files.srcs]))
-  command = " ".join([
-      compiler.path,
-      "-o",
-      ctx.outputs.executable.path
-  ] + ["-I " + search_dir for search_dir in search_dirs] + srcs_paths)
-
   ctx.action(
-      inputs = ctx.files.srcs + [compiler],
-      command = command,
-      outputs = [ctx.outputs.executable],
+      inputs = ctx.files.srcs + [ocamlbuild],
+      outputs = [ctx.outputs.executable, ctx.outputs.build_dir],
+      command = " ".join([
+          ocamlbuild.path, 
+          opts, pkgs, 
+          target_bin, 
+          "&& cp -L %s %s" % (intermediate_bin, ctx.outputs.executable.path)
+      ]),
+      use_default_shell_env = True,
+      mnemonic = "Ocamlbuild",
       progress_message = "Compiling OCaml binary %s" % ctx.label.name,
   )
 
@@ -111,9 +121,8 @@ _ocaml_binary = rule(
             allow_files = OCAML_FILETYPES
         ),
         "deps": attr.label_list(),
-        "opam_packages": attr.string_list(mandatory = False),
-        "compiler": attr.label(
-            allow_files = True,
+        "src_root": attr.label(
+            allow_files = OCAML_FILETYPES,
             single_file = True,
             mandatory = True,
         ),
