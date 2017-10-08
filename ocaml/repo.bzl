@@ -1,9 +1,10 @@
 OCAML_VERSION = "4.04.0"
 OCAMLBUILD_VERSION = "0.11.0"
+OCAMLFIND_VERSION = "1.7.3"
 COMPILER_NAME = "ocaml-base-compiler.%s" % OCAML_VERSION
 
 # Set to false to see debug messages
-DEBUG_QUIET = True 
+DEBUG_QUIET = True
 
 # The path to the root opam directory
 OPAM_ROOT_DIR = "OPAM_ROOT_DIR"
@@ -43,28 +44,46 @@ def _ocaml_toolchain_impl(repository_ctx):
 
   # Initialize opam and its root directory
   repository_ctx.execute([
-      opam_bin, 
-      "init", 
-      "--root", OPAM_ROOT_DIR, 
-      "--no-setup", 
+      opam_bin,
+      "init",
+      "--root", OPAM_ROOT_DIR,
+      "--no-setup",
       "--comp", COMPILER_NAME
   ], quiet = DEBUG_QUIET)
 
   # Download the OCaml compiler
   repository_ctx.execute([
-      opam_bin, 
-      "switch", COMPILER_NAME, 
+      opam_bin,
+      "switch", COMPILER_NAME,
       "--root", OPAM_ROOT_DIR
   ], quiet = DEBUG_QUIET)
 
   # Install OCamlbuild
   repository_ctx.execute([
-      opam_bin, 
-      "install", 
-      "ocamlbuild=%s" % OCAMLBUILD_VERSION, 
-      "--yes", 
+      opam_bin,
+      "install",
+      "ocamlbuild=%s" % OCAMLBUILD_VERSION,
+      "--yes",
       "--root", OPAM_ROOT_DIR
   ], quiet = DEBUG_QUIET)
+
+  # Install OCamlfind
+  repository_ctx.execute([
+      opam_bin,
+      "install",
+      "ocamlfind=%s" % OCAMLFIND_VERSION,
+      "--yes",
+      "--root", OPAM_ROOT_DIR
+  ], quiet = DEBUG_QUIET)
+
+  [repository_ctx.execute([
+      opam_bin,
+      "install",
+      "%s=%s" % (pkg, version),
+      "--yes",
+      "--root", OPAM_ROOT_DIR
+  ], quiet = DEBUG_QUIET)
+   for (pkg, version) in repository_ctx.attr.opam_packages.items()]
 
   repository_ctx.file("WORKSPACE", "", False)
   repository_ctx.file("BUILD", _OCAML_TOOLCHAIN_BUILD, False)
@@ -79,16 +98,19 @@ _ocaml_toolchain_repo = repository_rule(
             allow_files = True,
             cfg = "host",
         ),
+        "opam_packages": attr.string_dict(default = {}),
     }
 )
 
-def _ocaml_toolchain():
-  _ocaml_toolchain_repo(name = "ocaml_toolchain")
+def _ocaml_toolchain(opam_packages = []):
+  _ocaml_toolchain_repo(
+      name = "ocaml_toolchain",
+      opam_packages = opam_packages,
+  )
 
 # Set up OPAM
 def _opam_binary_impl(repository_ctx):
   os_name = repository_ctx.os.name.lower()
-  print("Downloading OPAM..")
   if os_name.find("windows") != -1:
     fail("Windows is not supported yet, sorry!")
   elif os_name.startswith("mac os"):
@@ -116,6 +138,6 @@ _opam_binary_repo = repository_rule(
 def _opam_binary():
   _opam_binary_repo(name = "opam")
 
-def ocaml_repositories():
+def ocaml_repositories(opam_packages = {}):
   _opam_binary()
-  _ocaml_toolchain()
+  _ocaml_toolchain(opam_packages = opam_packages)

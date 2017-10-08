@@ -1,5 +1,7 @@
-OCAML_FILETYPES = FileType([".ml"])
-OCAML_VERSION = "4.03.0"
+load("//ocaml:repo.bzl", "OPAM_ROOT_DIR", "OCAML_VERSION", "COMPILER_NAME")
+OCAML_FILETYPES = FileType([
+    ".ml", ".mli", ".cmx", ".cmo", ".cma"
+])
 
 _ocaml_toolchain_attrs = {
     "_opam": attr.label(
@@ -80,6 +82,8 @@ def _get_src_root(ctx, root_file_names = ["main.ml"]):
 
 def _ocaml_binary_impl(ctx):
   ocamlbuild = ctx.executable._ocamlbuild
+  ocamlfind = ctx.executable._ocamlfind
+  opam = ctx.executable._opam
   opts = "-quiet -build-dir %s" % ctx.outputs.build_dir.path
 
   src_root = _get_src_root(ctx)
@@ -91,27 +95,40 @@ def _ocaml_binary_impl(ctx):
     target_bin = "%s.byte" % src
 
   # Binary compiled by ocamlbuild
-  intermediate_bin = "/".join([ctx.outputs.build_dir.path, target_bin])
+  intermediate_bin = "/".join([
+      ctx.outputs.build_dir.path,
+      target_bin,
+  ])
 
-  # opam_command = ""
+  opam_env_command = "{opam} config exec --root external/ocaml_toolchain/{root_dir} --".format(
+        opam = opam.path,
+        root_dir = OPAM_ROOT_DIR
+  )
+
   pkgs = ""
-  # opam_packages = ctx.attr.opam_packages
-  # if (len(opam_packages) > 0):
-  #   pkgs += "-pkgs " + " ".join(ctx.attr.opam_packages) + " -use-ocamlfind"
-  #   opam_command = " ".join([opam_path, "install"] + opam_packages + ["ocamlbuild", "&&"])
+  opam_packages = ctx.attr.opam_packages
+  if (len(opam_packages) > 0):
+    pkgs += "-pkgs " + " ".join(opam_packages) + " -use-ocamlfind"
 
-  ctx.action(
-      inputs = ctx.files.srcs + [ocamlbuild],
+  command = " ".join([
+      opam_env_command,
+      ocamlbuild.path,
+      opts,
+      pkgs,
+      target_bin,
+      "&& cp -L %s %s" % (intermediate_bin, ctx.outputs.executable.path)
+  ])
+  print(command)
+
+  ctx.actions.run_shell(
+      inputs = ctx.files.srcs + [ocamlfind, ocamlbuild, opam],
       outputs = [ctx.outputs.executable, ctx.outputs.build_dir],
-      command = " ".join([
-          ocamlbuild.path, 
-          opts, pkgs, 
-          target_bin, 
-          "&& cp -L %s %s" % (intermediate_bin, ctx.outputs.executable.path)
-      ]),
-      use_default_shell_env = True,
+      command = command,
       mnemonic = "Ocamlbuild",
       progress_message = "Compiling OCaml binary %s" % ctx.label.name,
+      # This is (unfortunately) not hermetic yet.
+      use_default_shell_env = True,
+      execution_requirements = {"local": "1"},
   )
 
 _ocaml_binary = rule(
@@ -126,21 +143,15 @@ _ocaml_binary = rule(
             single_file = True,
             mandatory = True,
         ),
+        "opam_packages": attr.string_list(default = []),
+        "bin_type": attr.string(default = "native")
     } + _ocaml_toolchain_attrs,
     executable = True,
-    outputs = { },
+    outputs = { "build_dir": "_build_%{name}" },
 )
 
-def ocaml_native_binary(name, srcs):
-  _ocaml_binary(
-      name = name,
-      srcs = srcs,
-      compiler = "@ocaml_toolchain//:ocamlopt",
-  )
+def ocaml_native_binary(**kwargs):
+  _ocaml_binary(bin_type = "native", **kwargs)
 
-def ocaml_bytecode_binary(name, srcs):
-  _ocaml_binary(
-      name = name,
-      srcs = srcs,
-      compiler = "@ocaml_toolchain//:ocamlc",
-  )
+def ocaml_bytecode_binary(**kwargs):
+  _ocaml_binary(bin_type = "bytecode", **kwargs)
