@@ -118,7 +118,6 @@ def _ocaml_binary_impl(ctx):
       target_bin,
       "&& cp -L %s %s" % (intermediate_bin, ctx.outputs.executable.path)
   ])
-  print(command)
 
   ctx.actions.run_shell(
       inputs = ctx.files.srcs + [ocamlfind, ocamlbuild, opam],
