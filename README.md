@@ -37,6 +37,11 @@ and this to your BUILD files.
 load("@io_bazel_rules_ocaml//ocaml:ocaml.bzl", "ocaml_native_binary", "ocaml_bytecode_binary", "ocaml_interface")
 ```
 
+`ocaml_repositories()` will download and compile the OCaml toolchain, including `ocamlbuild`, `ocamlfind` and `OPAM` itself, as the [official source](https://caml.inria.fr/download.en.html) doesn't release binaries directly and requires the use of OPAM for installations. 
+
+The initial load time of toolchain compilation will take a few minutes and will not happen again for the same project.
+
+
 ## Rules
 
 ### ocaml_native_binary/ocaml_bytecode_binary
