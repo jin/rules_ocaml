@@ -60,7 +60,7 @@ ocaml_native_binary(
     name = "hello_world",
     srcs = glob(["examples/*.ml"]),
     src_root = "examples/hello_world.ml",
-    opam_packages = ["pkg_foo", "pkg_bar"],
+    opam_packages = ["yojson", "lwt"],
 )
 
 ocaml_bytecode_binary(
