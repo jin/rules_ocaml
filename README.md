@@ -8,7 +8,7 @@
 
 ## Overview
 
-Build OCaml with Bazel. Very experimental. API is expected to change.
+Build OCaml with Bazel. Very experimental.
 
 ## Setup
 
