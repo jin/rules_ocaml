@@ -1,45 +1,50 @@
 load("//ocaml:repo.bzl", "OPAM_ROOT_DIR", "OCAML_VERSION", "COMPILER_NAME")
-OCAML_FILETYPES = FileType([
+OCAML_FILETYPES = [
     ".ml", ".mli", ".cmx", ".cmo", ".cma"
-])
+]
 
 _ocaml_toolchain_attrs = {
     "_opam": attr.label(
         default = Label("@opam//:opam"),
         executable = True,
-        single_file = True,
-        allow_files = True,
+        allow_single_file = True,
         cfg = "host",
     ),
     "_ocamlc": attr.label(
         default = Label("@ocaml_toolchain//:ocamlc"),
         executable = True,
-        single_file = True,
-        allow_files = True,
+        allow_single_file = True,
         cfg = "host",
     ),
     "_ocamlopt": attr.label(
         default = Label("@ocaml_toolchain//:ocamlopt"),
         executable = True,
-        single_file = True,
-        allow_files = True,
+        allow_single_file = True,
         cfg = "host",
     ),
     "_ocamlfind": attr.label(
         default = Label("@ocaml_toolchain//:ocamlfind"),
         executable = True,
-        single_file = True,
-        allow_files = True,
+        allow_single_file = True,
         cfg = "host",
     ),
     "_ocamlbuild": attr.label(
         default = Label("@ocaml_toolchain//:ocamlbuild"),
         executable = True,
-        single_file = True,
-        allow_files = True,
+        allow_single_file = True,
         cfg = "host",
     )
 }
+
+def _add(attrs, *others):
+    new = {}
+    new.update(attrs)
+    for o in others:
+        for name in o.keys():
+            if name in new:
+                fail("Attr '%s' is defined twice." % name)
+            new[name] = o[name]
+    return new
 
 def _ocaml_interface_impl(ctx):
   ctx.actions.run_shell(
@@ -54,12 +59,11 @@ def _ocaml_interface_impl(ctx):
 
 ocaml_interface = rule(
     implementation = _ocaml_interface_impl,
-    attrs = {
+    attrs = _add({
         "src": attr.label(
-            allow_files = OCAML_FILETYPES,
-            single_file = True,
+            allow_single_file = OCAML_FILETYPES,
         ),
-    } + _ocaml_toolchain_attrs,
+    }, _ocaml_toolchain_attrs),
     outputs = { "mli": "%{name}.mli" },
 )
 
@@ -132,19 +136,18 @@ def _ocaml_binary_impl(ctx):
 
 _ocaml_binary = rule(
     implementation = _ocaml_binary_impl,
-    attrs = {
+    attrs = _add({
         "srcs": attr.label_list(
             allow_files = OCAML_FILETYPES
         ),
         "deps": attr.label_list(),
         "src_root": attr.label(
-            allow_files = OCAML_FILETYPES,
-            single_file = True,
+            allow_single_file = OCAML_FILETYPES,
             mandatory = True,
         ),
         "opam_packages": attr.string_list(default = []),
         "bin_type": attr.string(default = "native")
-    } + _ocaml_toolchain_attrs,
+    }, _ocaml_toolchain_attrs),
     executable = True,
     outputs = { "build_dir": "_build_%{name}" },
 )

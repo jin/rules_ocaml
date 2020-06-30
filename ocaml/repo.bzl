@@ -94,8 +94,7 @@ _ocaml_toolchain_repo = repository_rule(
         "_opam": attr.label(
             default = Label("@opam//:opam"),
             executable = True,
-            single_file = True,
-            allow_files = True,
+            allow_single_file = True,
             cfg = "host",
         ),
         "opam_packages": attr.string_dict(default = {}),
