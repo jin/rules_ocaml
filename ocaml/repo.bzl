@@ -7,7 +7,7 @@ COMPILER_NAME = "ocaml-base-compiler.%s" % OCAML_VERSION
 DEBUG_QUIET = True
 
 # The path to the root opam directory
-OPAM_ROOT_DIR = "OPAM_ROOT_DIR"
+OPAM_ROOT_DIR = ".opam_root_dir"
 
 # Set up OCaml's toolchain (ocamlc, ocamlbuild, ocamlfind)
 _OCAML_TOOLCHAIN_BUILD = """
@@ -42,23 +42,23 @@ filegroup(
 def _ocaml_toolchain_impl(repository_ctx):
   opam_bin = repository_ctx.path(repository_ctx.attr._opam)
 
-  # Initialize opam and its root directory
+  repository_ctx.report_progress("Initializing opam and its root directory..")
   repository_ctx.execute([
       opam_bin,
       "init",
       "--root", OPAM_ROOT_DIR,
       "--no-setup",
       "--comp", COMPILER_NAME
-  ], quiet = DEBUG_QUIET)
+  ], quiet = False)
 
-  # Download the OCaml compiler
+  repository_ctx.report_progress("Downloading the OCaml compiler..")
   repository_ctx.execute([
       opam_bin,
       "switch", COMPILER_NAME,
       "--root", OPAM_ROOT_DIR
   ], quiet = DEBUG_QUIET)
 
-  # Install OCamlbuild
+  repository_ctx.report_progress("Installing ocamlbuild..")
   repository_ctx.execute([
       opam_bin,
       "install",
@@ -67,7 +67,7 @@ def _ocaml_toolchain_impl(repository_ctx):
       "--root", OPAM_ROOT_DIR
   ], quiet = DEBUG_QUIET)
 
-  # Install OCamlfind
+  repository_ctx.report_progress("Installing ocamlfind..")
   repository_ctx.execute([
       opam_bin,
       "install",
@@ -76,6 +76,7 @@ def _ocaml_toolchain_impl(repository_ctx):
       "--root", OPAM_ROOT_DIR
   ], quiet = DEBUG_QUIET)
 
+  repository_ctx.report_progress("Installing opam packages..")
   [repository_ctx.execute([
       opam_bin,
       "install",

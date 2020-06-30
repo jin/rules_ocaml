@@ -48,7 +48,8 @@ def _add(attrs, *others):
 
 def _ocaml_interface_impl(ctx):
   ctx.actions.run_shell(
-      inputs = [ctx.file.src, ctx.executable._ocamlc],
+      tools = [ctx.executable._ocamlc],
+      inputs = [ctx.file.src],
       outputs = [ctx.outputs.mli],
       progress_message = "Compiling interface file %s" % ctx.label,
       mnemonic="OCamlc",
@@ -124,7 +125,8 @@ def _ocaml_binary_impl(ctx):
   ])
 
   ctx.actions.run_shell(
-      inputs = ctx.files.srcs + [ocamlfind, ocamlbuild, opam],
+      tools = [ocamlfind, ocamlbuild, opam],
+      inputs = ctx.files.srcs,
       outputs = [ctx.outputs.executable, ctx.outputs.build_dir],
       command = command,
       mnemonic = "Ocamlbuild",
